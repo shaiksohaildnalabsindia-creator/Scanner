@@ -30,9 +30,12 @@
 <audio id="beep-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
 <script type="module">
-import { BrowserMultiFormatReader } from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
+import {
+  BrowserMultiFormatReader,
+  BarcodeFormat,
+  DecodeHintType
+} from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
 
-const reader = new BrowserMultiFormatReader();
 const video = document.getElementById("video");
 const resultEl = document.getElementById("result");
 const statusEl = document.getElementById("status");
@@ -40,7 +43,7 @@ const timestampEl = document.getElementById("timestamp");
 const progressEl = document.getElementById("progress");
 const beep = document.getElementById("beep-sound");
 
-// Get courier & count from URL
+// URL params
 const params = new URLSearchParams(window.location.search);
 const totalCount = Number(params.get("count") || 0);
 const courier = params.get("courier") || "";
@@ -48,53 +51,83 @@ const courier = params.get("courier") || "";
 document.getElementById("info").textContent =
   `Courier: ${courier} | Parcels to scan: ${totalCount}`;
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxy0rhoNDPdRWvZSkRPsZHGy-TLpuVMiqsyFKuKPBpMEc-fx4ZgBLA4JPc0_l-F358azw/exec";
+const WEB_APP_URL =
+  "https://script.google.com/macros/s/AKfycbxy0rhoNDPdRWvZSkRPsZHGy-TLpuVMiqsyFKuKPBpMEc-fx4ZgBLA4JPc0_l-F358azw/exec";
+
+// 🚀 ZXing Hints – LINEAR ONLY
+const hints = new Map();
+hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+  BarcodeFormat.CODE_128,
+  BarcodeFormat.CODE_39,
+  BarcodeFormat.EAN_13,
+  BarcodeFormat.EAN_8,
+  BarcodeFormat.UPC_A,
+  BarcodeFormat.UPC_E,
+  BarcodeFormat.ITF
+]);
+
+const reader = new BrowserMultiFormatReader(hints, {
+  delayBetweenScanAttempts: 40,
+  delayBetweenScanSuccess: 800
+});
 
 let scanned = new Set();
+let scanning = true;
+
 progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
 
+// Force rear camera
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: "environment" }
+}).then(stream => {
+  video.srcObject = stream;
+});
+
+// Start scanning
 reader.decodeFromVideoDevice(null, video, async (result) => {
-  if (!result) return;
+  if (!result || !scanning) return;
+
   const code = result.getText().trim();
   if (scanned.has(code)) return;
 
+  scanning = false;
   scanned.add(code);
   resultEl.textContent = code;
 
-  // Play beep + vibrate
+  // Feedback
   beep.currentTime = 0;
-  beep.play().catch(() => {});
-  if (navigator.vibrate) navigator.vibrate(200);
+  beep.play().catch(()=>{});
+  if (navigator.vibrate) navigator.vibrate(150);
 
-  // Save tracking number to Sheet2
+  // Save to Sheet2
   try {
     await fetch(WEB_APP_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ page:"page2", tracking: code }),
+      body: JSON.stringify({ page: "page2", tracking: code }),
       mode: "no-cors"
     });
 
     const now = new Date();
-    statusEl.textContent = `Saved ✅`;
+    statusEl.textContent = "Saved ✅";
     timestampEl.textContent = `Scan Time: ${now.toLocaleString()}`;
-
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = "Error saving ❌";
-    timestampEl.textContent = "";
+  } catch {
+    statusEl.textContent = "Save error ❌";
   }
 
-  // Update progress
   progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
 
-  // All scanned → redirect back to index
+  // Resume scanning
+  setTimeout(() => scanning = true, 600);
+
+  // Done
   if (scanned.size >= totalCount) {
     statusEl.textContent = "All parcels scanned! Redirecting...";
-    setTimeout(() => { window.location.href = "index.html"; }, 2000);
+    setTimeout(() => window.location.href = "index.html", 2000);
   }
 });
 </script>
+
 
 </body>
 </html>
