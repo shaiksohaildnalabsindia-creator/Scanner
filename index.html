@@ -77,16 +77,12 @@
 <script>
 document.getElementById("parcelForm").addEventListener("submit", function(e){
   e.preventDefault();
-
   const courier = document.getElementById("courier").value;
   const count = document.getElementById("count").value;
-
   if(!courier || !count){
     alert("Please select courier and count");
     return;
   }
-
-  // Redirect to scanner page with parameters
   window.location.href = `scanner_camera.html?courier=${encodeURIComponent(courier)}&count=${count}`;
 });
 </script>
