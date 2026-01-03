@@ -5,87 +5,91 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Parcel Entry</title>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg,#f9d423,#ff4e50);
-    color: #333;
-    text-align: center;
-    padding: 30px;
-  }
-  h2 {
-    color: #fff;
-    margin-bottom: 20px;
-    text-shadow: 1px 1px 2px #000;
-  }
-  label {
-    font-weight: bold;
-    display: block;
-    margin: 15px 0 5px;
-  }
-  select, button {
-    padding: 10px;
-    font-size: 16px;
-    border-radius: 6px;
-    border: none;
-    width: 200px;
-    margin-bottom: 15px;
-  }
-  button {
-    background-color: #ff6f61;
-    color: #fff;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.3s;
-  }
-  button:hover {
-    background-color: #ff3b2e;
-  }
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #f6d365, #fda085);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+.container {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  text-align: center;
+}
+h2 { color: #ff6f61; margin-bottom: 20px; }
+label { font-weight: bold; display: block; text-align: left; margin-top: 15px; }
+select, button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+button {
+  background-color: #ff6f61;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  margin-top: 20px;
+}
+button:hover { background-color: #ff3b2e; }
+@media (max-width: 500px){
+  select, button { font-size: 18px; padding: 14px; }
+}
 </style>
 </head>
 <body>
-
-<h2>Parcel Entry Form</h2>
-
-<form id="parcelForm">
-  <label for="courier">Parcels From:</label>
-  <select id="courier" required>
-    <option value="" disabled selected>Select Courier</option>
-    <option value="Bluedart">Bluedart</option>
-    <option value="FedEx">FedEx</option>
-    <option value="DTDC">DTDC</option>
-    <option value="Others">Others</option>
-  </select>
-
-  <label for="count">Parcel Count:</label>
-  <select id="count" required>
-    <option value="" disabled selected>Select Count</option>
-    <option value="1">1</option>
-    <option value="2">2</option>
-    <option value="3">3</option>
-    <option value="4">4</option>
-    <option value="5">5</option>
-    <option value="6">6</option>
-    <option value="7">7</option>
-    <option value="8">8</option>
-    <option value="9">9</option>
-  </select>
-
-  <br>
-  <button type="submit">Start Scanning</button>
-</form>
+<div class="container">
+<h2>Parcel Entry</h2>
+<label for="courier">Parcels From:</label>
+<select id="courier">
+  <option value="">Select Courier</option>
+  <option>Bluedart</option>
+  <option>FedEx</option>
+  <option>DTDC</option>
+  <option>Others</option>
+</select>
+<label for="count">Count:</label>
+<select id="count">
+  <option value="">Select Count</option>
+  <script>
+    for(let i=1;i<=9;i++){ document.write(`<option value="${i}">${i}</option>`); }
+  </script>
+</select>
+<button onclick="submitData()">Submit</button>
+</div>
 
 <script>
-document.getElementById("parcelForm").addEventListener("submit", function(e){
-  e.preventDefault();
+const API_URL = "https://script.google.com/macros/s/AKfycby8OmmFFT09Tv0lty2ZZH7O4u8KUzxCygrFGCOBobX-_x7sntEPuFlb3StS1jELMxLL/exec";
+
+function submitData(){
   const courier = document.getElementById("courier").value;
   const count = document.getElementById("count").value;
-  if(!courier || !count){
-    alert("Please select courier and count");
-    return;
-  }
-  window.location.href = `scanner_camera.html?courier=${encodeURIComponent(courier)}&count=${count}`;
-});
-</script>
+  if(!courier || !count){ alert("Please select courier and count"); return; }
 
+  fetch(API_URL,{
+    method:"POST",
+    headers: { "Content-Type":"text/plain;charset=utf-8" },
+    body: JSON.stringify({ type:"entry", courier, count })
+  })
+  .then(res=>res.text())
+  .then(data=>{
+    console.log("API Response:", data);
+    window.location.href = `scanner.html?courier=${encodeURIComponent(courier)}&count=${encodeURIComponent(count)}`;
+  })
+  .catch(err=>{
+    console.error(err);
+    alert("Failed to send data. Check console.");
+  });
+}
+</script>
 </body>
 </html>
