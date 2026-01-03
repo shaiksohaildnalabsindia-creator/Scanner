@@ -11,10 +11,10 @@
     padding: 20px;
     background: linear-gradient(135deg,#a8edea,#fed6e3);
   }
-  h2 { color:#ff6f61; }
+  h2 { color:#ff6f61; margin-bottom: 15px; }
   video { width:90%; max-width:400px; border:1px solid #ccc; border-radius:6px; }
-  #status, #progress { margin-top:10px; font-weight:bold; color:#333; }
-  #result { font-weight:bold; color:#000; }
+  #status, #progress, #timestamp { margin-top:10px; font-weight:bold; color:#333; }
+  #result { font-weight:bold; color:#000; font-size:18px; }
 </style>
 </head>
 <body>
@@ -24,6 +24,7 @@
 <video id="video" autoplay playsinline></video>
 <p><b>Last Scanned:</b> <span id="result">None</span></p>
 <p id="status"></p>
+<p id="timestamp"></p>
 <p id="progress"></p>
 
 <audio id="beep-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
@@ -35,6 +36,7 @@ const reader = new BrowserMultiFormatReader();
 const video = document.getElementById("video");
 const resultEl = document.getElementById("result");
 const statusEl = document.getElementById("status");
+const timestampEl = document.getElementById("timestamp");
 const progressEl = document.getElementById("progress");
 const beep = document.getElementById("beep-sound");
 
@@ -58,13 +60,13 @@ reader.decodeFromVideoDevice(null, video, async (result) => {
 
   scanned.add(code);
   resultEl.textContent = code;
-  statusEl.textContent = "Scanning...";
 
+  // Play beep + vibrate
   beep.currentTime = 0;
   beep.play().catch(() => {});
   if (navigator.vibrate) navigator.vibrate(200);
 
-  // Save to Sheet2
+  // Save tracking number to Sheet2
   try {
     await fetch(WEB_APP_URL, {
       method: "POST",
@@ -72,20 +74,23 @@ reader.decodeFromVideoDevice(null, video, async (result) => {
       body: JSON.stringify({ page:"page2", tracking: code }),
       mode: "no-cors"
     });
-  
-  // Show scan time on page only
-  const now = new Date();
-  statusEl.textContent = `Saved ✅ at ${now.toLocaleString()}`;
+
+    const now = new Date();
+    statusEl.textContent = `Saved ✅`;
+    timestampEl.textContent = `Scan Time: ${now.toLocaleString()}`;
 
   } catch (err) {
     console.error(err);
     statusEl.textContent = "Error saving ❌";
+    timestampEl.textContent = "";
   }
 
+  // Update progress
   progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
 
+  // All scanned → redirect back to index
   if (scanned.size >= totalCount) {
-    statusEl.textContent = "All scanned! Redirecting...";
+    statusEl.textContent = "All parcels scanned! Redirecting...";
     setTimeout(() => { window.location.href = "index.html"; }, 2000);
   }
 });
