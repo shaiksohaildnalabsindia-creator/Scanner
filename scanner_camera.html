@@ -72,7 +72,11 @@ reader.decodeFromVideoDevice(null, video, async (result) => {
       body: JSON.stringify({ page:"page2", tracking: code }),
       mode: "no-cors"
     });
-    statusEl.textContent = `Saved ✅ at ${now.toLocaleString()}`;
+  
+  // Show scan time on page only
+  const now = new Date();
+  statusEl.textContent = `Saved ✅ at ${now.toLocaleString()}`;
+
   } catch (err) {
     console.error(err);
     statusEl.textContent = "Error saving ❌";
