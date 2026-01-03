@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barcode Scanner</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #a8edea, #fed6e3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+.container {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  text-align: center;
+}
+h2 { color: #ff6f61; margin-bottom: 20px; }
+p { font-size:16px; margin:10px 0; }
+input[type=text]{
+  width:100%; padding:12px; font-size:18px;
+  border-radius:8px; border:1px solid #ccc; text-align:center; margin-bottom:15px;
+}
+.progress { margin-top:15px; font-weight:bold; color:#333; }
+@media(max-width:500px){ input[type=text]{font-size:20px; padding:14px;} }
+</style>
+</head>
+<body>
+<div class="container">
+<h2>Barcode Scanner</h2>
+<p id="info"></p>
+<input type="text" id="barcode" placeholder="Scan barcode" autofocus />
+<p class="progress" id="progress"></p>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbz8BckjSR12Qk3Gm84gsbu_QCJ3BFWJLr6sQcI73pkpRl6TmLb5NkdiKe3Xo_436YM/exec";
+
+const params = new URLSearchParams(window.location.search);
+const courier = params.get("courier");
+const totalCount = Number(params.get("count"));
+
+const info = document.getElementById("info");
+const progress = document.getElementById("progress");
+const barcodeInput = document.getElementById("barcode");
+
+info.textContent = `Courier: ${courier} | Parcels to scan: ${totalCount}`;
+progress.textContent = `0 / ${totalCount} scanned`;
+
+let scanned = [];
+
+barcodeInput.addEventListener("keydown",(e)=>{
+  if(e.key==="Enter"){
+    e.preventDefault();
+    const code = barcodeInput.value.trim();
+    barcodeInput.value = "";
+    if(!code) return;
+    if(scanned.includes(code)){
+      alert("Barcode already scanned!");
+      return;
+    }
+    scanned.push(code);
+    progress.textContent = `${scanned.length} / ${totalCount} scanned`;
+
+    // Send barcode to Apps Script
+    fetch(API_URL,{
+      method:"POST",
+      headers: { "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify({ type:"scan", courier, tracking:code })
+    })
+    .then(res=>res.text())
+    .then(data=>console.log("API Response:", data))
+    .catch(err=>console.error(err));
+
+    if(scanned.length === totalCount){
+      alert("All parcels scanned!");
+      window.location.href = "index.html";
+    }
+  }
+});
+</script>
+</body>
+</html>
