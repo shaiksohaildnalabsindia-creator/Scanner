@@ -3,73 +3,44 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Parcel Barcode Scanner</title>
-
+<title>Camera Barcode Scanner</title>
 <style>
   body {
     font-family: Arial, sans-serif;
     text-align: center;
     padding: 20px;
-    background: linear-gradient(135deg, #a8edea, #fed6e3);
+    background: linear-gradient(135deg,#a8edea,#fed6e3);
   }
-  h2 { color:#ff6f61; }
-  video {
-    width: 95%;
-    max-width: 420px;
-    border: 2px solid #333;
-    border-radius: 8px;
-    display: none;
-  }
-  button {
-    padding: 12px 20px;
-    font-size: 16px;
-    border-radius: 6px;
-    border: none;
-    background: #ff6f61;
-    color: white;
-    cursor: pointer;
-  }
-  #status, #timestamp, #progress {
-    margin-top: 8px;
-    font-weight: bold;
-  }
+  h2 { color:#ff6f61; margin-bottom: 15px; }
+  video { width:90%; max-width:400px; border:1px solid #ccc; border-radius:6px; }
+  #status, #progress, #timestamp { margin-top:10px; font-weight:bold; color:#333; }
+  #result { font-weight:bold; color:#000; font-size:18px; }
 </style>
 </head>
-
 <body>
 
 <h2>Parcel Camera Scanner</h2>
-
 <p id="info"></p>
-
-<button id="startBtn">📷 Start Camera</button>
-
 <video id="video" autoplay playsinline></video>
-
-<p>Last Scanned: <span id="result">None</span></p>
+<p><b>Last Scanned:</b> <span id="result">None</span></p>
 <p id="status"></p>
 <p id="timestamp"></p>
 <p id="progress"></p>
 
-<audio id="beep"
-  src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
-  preload="auto"></audio>
+<audio id="beep-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
 <script type="module">
-import {
-  BrowserMultiFormatReader,
-  BarcodeFormat,
-  DecodeHintType
-} from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
+import { BrowserMultiFormatReader } from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
 
+const reader = new BrowserMultiFormatReader();
 const video = document.getElementById("video");
-const startBtn = document.getElementById("startBtn");
 const resultEl = document.getElementById("result");
 const statusEl = document.getElementById("status");
 const timestampEl = document.getElementById("timestamp");
 const progressEl = document.getElementById("progress");
-const beep = document.getElementById("beep");
+const beep = document.getElementById("beep-sound");
 
+// Get courier & count from URL
 const params = new URLSearchParams(window.location.search);
 const totalCount = Number(params.get("count") || 0);
 const courier = params.get("courier") || "";
@@ -77,77 +48,52 @@ const courier = params.get("courier") || "";
 document.getElementById("info").textContent =
   `Courier: ${courier} | Parcels to scan: ${totalCount}`;
 
-const WEB_APP_URL =
-  "https://script.google.com/macros/s/AKfycbxy0rhoNDPdRWvZSkRPsZHGy-TLpuVMiqsyFKuKPBpMEc-fx4ZgBLA4JPc0_l-F358azw/exec";
-
-/* LINEAR ONLY */
-const hints = new Map();
-hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-  BarcodeFormat.CODE_128,
-  BarcodeFormat.CODE_39,
-  BarcodeFormat.EAN_13,
-  BarcodeFormat.EAN_8,
-  BarcodeFormat.UPC_A,
-  BarcodeFormat.UPC_E,
-  BarcodeFormat.ITF
-]);
-
-const reader = new BrowserMultiFormatReader(hints, {
-  delayBetweenScanAttempts: 40,
-  delayBetweenScanSuccess: 800
-});
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxy0rhoNDPdRWvZSkRPsZHGy-TLpuVMiqsyFKuKPBpMEc-fx4ZgBLA4JPc0_l-F358azw/exec";
 
 let scanned = new Set();
-let scanning = true;
+progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
 
-progressEl.textContent = `0 / ${totalCount} scanned`;
+reader.decodeFromVideoDevice(null, video, async (result) => {
+  if (!result) return;
+  const code = result.getText().trim();
+  if (scanned.has(code)) return;
 
-startBtn.onclick = async () => {
-  startBtn.style.display = "none";
-  video.style.display = "block";
+  scanned.add(code);
+  resultEl.textContent = code;
 
-  reader.decodeFromVideoDevice(
-    { facingMode: "environment" },
-    video,
-    async (result) => {
-      if (!result || !scanning) return;
+  // Play beep + vibrate
+  beep.currentTime = 0;
+  beep.play().catch(() => {});
+  if (navigator.vibrate) navigator.vibrate(200);
 
-      const code = result.getText().trim();
-      if (scanned.has(code)) return;
+  // Save tracking number to Sheet2
+  try {
+    await fetch(WEB_APP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ page:"page2", tracking: code }),
+      mode: "no-cors"
+    });
 
-      scanning = false;
-      scanned.add(code);
-      resultEl.textContent = code;
+    const now = new Date();
+    statusEl.textContent = `Saved ✅`;
+    timestampEl.textContent = `Scan Time: ${now.toLocaleString()}`;
 
-      beep.play().catch(()=>{});
-      if (navigator.vibrate) navigator.vibrate(150);
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Error saving ❌";
+    timestampEl.textContent = "";
+  }
 
-      try {
-        await fetch(WEB_APP_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ page:"page2", tracking: code }),
-          mode: "no-cors"
-        });
+  // Update progress
+  progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
 
-        const now = new Date();
-        statusEl.textContent = "Saved ✅";
-        timestampEl.textContent = "Scan Time: " + now.toLocaleString();
-      } catch {
-        statusEl.textContent = "Save error ❌";
-      }
-
-      progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
-
-      setTimeout(() => scanning = true, 600);
-
-      if (scanned.size >= totalCount) {
-        statusEl.textContent = "All scanned! Redirecting...";
-        setTimeout(() => window.location.href = "index.html", 2000);
-      }
-    }
-  );
-};
+  // All scanned → redirect back to index
+  if (scanned.size >= totalCount) {
+    statusEl.textContent = "All parcels scanned! Redirecting...";
+    setTimeout(() => { window.location.href = "index.html"; }, 2000);
+  }
+});
 </script>
 
 </body>
