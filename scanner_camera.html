@@ -3,31 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Camera Barcode Scanner</title>
+<title>Parcel Barcode Scanner</title>
+
 <style>
   body {
     font-family: Arial, sans-serif;
     text-align: center;
     padding: 20px;
-    background: linear-gradient(135deg,#a8edea,#fed6e3);
+    background: linear-gradient(135deg, #a8edea, #fed6e3);
   }
-  h2 { color:#ff6f61; margin-bottom: 15px; }
-  video { width:90%; max-width:400px; border:1px solid #ccc; border-radius:6px; }
-  #status, #progress, #timestamp { margin-top:10px; font-weight:bold; color:#333; }
-  #result { font-weight:bold; color:#000; font-size:18px; }
+
+  h2 {
+    color: #ff6f61;
+    margin-bottom: 10px;
+  }
+
+  video {
+    width: 95%;
+    max-width: 420px;
+    border-radius: 8px;
+    border: 2px solid #333;
+  }
+
+  #result {
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  #status, #timestamp, #progress {
+    margin-top: 8px;
+    font-weight: bold;
+  }
 </style>
 </head>
+
 <body>
 
 <h2>Parcel Camera Scanner</h2>
+
 <p id="info"></p>
+
 <video id="video" autoplay playsinline></video>
-<p><b>Last Scanned:</b> <span id="result">None</span></p>
+
+<p>Last Scanned: <span id="result">None</span></p>
 <p id="status"></p>
 <p id="timestamp"></p>
 <p id="progress"></p>
 
-<audio id="beep-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+<audio id="beep-sound"
+  src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
+  preload="auto"></audio>
 
 <script type="module">
 import {
@@ -36,6 +61,7 @@ import {
   DecodeHintType
 } from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
 
+/* ---------- ELEMENTS ---------- */
 const video = document.getElementById("video");
 const resultEl = document.getElementById("result");
 const statusEl = document.getElementById("status");
@@ -43,7 +69,7 @@ const timestampEl = document.getElementById("timestamp");
 const progressEl = document.getElementById("progress");
 const beep = document.getElementById("beep-sound");
 
-// URL params
+/* ---------- URL PARAMS ---------- */
 const params = new URLSearchParams(window.location.search);
 const totalCount = Number(params.get("count") || 0);
 const courier = params.get("courier") || "";
@@ -51,10 +77,11 @@ const courier = params.get("courier") || "";
 document.getElementById("info").textContent =
   `Courier: ${courier} | Parcels to scan: ${totalCount}`;
 
+/* ---------- APPS SCRIPT URL ---------- */
 const WEB_APP_URL =
   "https://script.google.com/macros/s/AKfycbxy0rhoNDPdRWvZSkRPsZHGy-TLpuVMiqsyFKuKPBpMEc-fx4ZgBLA4JPc0_l-F358azw/exec";
 
-// 🚀 ZXing Hints – LINEAR ONLY
+/* ---------- ZXING LINEAR ONLY ---------- */
 const hints = new Map();
 hints.set(DecodeHintType.POSSIBLE_FORMATS, [
   BarcodeFormat.CODE_128,
@@ -67,39 +94,41 @@ hints.set(DecodeHintType.POSSIBLE_FORMATS, [
 ]);
 
 const reader = new BrowserMultiFormatReader(hints, {
-  delayBetweenScanAttempts: 40,
+  delayBetweenScanAttempts: 40,   // 🔥 FAST
   delayBetweenScanSuccess: 800
 });
 
+/* ---------- STATE ---------- */
 let scanned = new Set();
 let scanning = true;
 
-progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
+progressEl.textContent = `0 / ${totalCount} scanned`;
 
-// Force rear camera
+/* ---------- FORCE REAR CAMERA ---------- */
 navigator.mediaDevices.getUserMedia({
   video: { facingMode: "environment" }
 }).then(stream => {
   video.srcObject = stream;
 });
 
-// Start scanning
+/* ---------- START SCANNING ---------- */
 reader.decodeFromVideoDevice(null, video, async (result) => {
   if (!result || !scanning) return;
 
   const code = result.getText().trim();
+
   if (scanned.has(code)) return;
 
   scanning = false;
   scanned.add(code);
   resultEl.textContent = code;
 
-  // Feedback
+  /* Feedback */
   beep.currentTime = 0;
   beep.play().catch(()=>{});
   if (navigator.vibrate) navigator.vibrate(150);
 
-  // Save to Sheet2
+  /* Save to Sheet2 */
   try {
     await fetch(WEB_APP_URL, {
       method: "POST",
@@ -110,24 +139,26 @@ reader.decodeFromVideoDevice(null, video, async (result) => {
 
     const now = new Date();
     statusEl.textContent = "Saved ✅";
-    timestampEl.textContent = `Scan Time: ${now.toLocaleString()}`;
+    timestampEl.textContent = "Scan Time: " + now.toLocaleString();
+
   } catch {
     statusEl.textContent = "Save error ❌";
   }
 
   progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
 
-  // Resume scanning
+  /* Resume scanning */
   setTimeout(() => scanning = true, 600);
 
-  // Done
+  /* Done */
   if (scanned.size >= totalCount) {
     statusEl.textContent = "All parcels scanned! Redirecting...";
-    setTimeout(() => window.location.href = "index.html", 2000);
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 2000);
   }
 });
 </script>
-
 
 </body>
 </html>
