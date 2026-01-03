@@ -12,24 +12,23 @@
     padding: 20px;
     background: linear-gradient(135deg, #a8edea, #fed6e3);
   }
-
-  h2 {
-    color: #ff6f61;
-    margin-bottom: 10px;
-  }
-
+  h2 { color:#ff6f61; }
   video {
     width: 95%;
     max-width: 420px;
-    border-radius: 8px;
     border: 2px solid #333;
+    border-radius: 8px;
+    display: none;
   }
-
-  #result {
-    font-size: 18px;
-    font-weight: bold;
+  button {
+    padding: 12px 20px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: none;
+    background: #ff6f61;
+    color: white;
+    cursor: pointer;
   }
-
   #status, #timestamp, #progress {
     margin-top: 8px;
     font-weight: bold;
@@ -43,6 +42,8 @@
 
 <p id="info"></p>
 
+<button id="startBtn">📷 Start Camera</button>
+
 <video id="video" autoplay playsinline></video>
 
 <p>Last Scanned: <span id="result">None</span></p>
@@ -50,7 +51,7 @@
 <p id="timestamp"></p>
 <p id="progress"></p>
 
-<audio id="beep-sound"
+<audio id="beep"
   src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
   preload="auto"></audio>
 
@@ -61,15 +62,14 @@ import {
   DecodeHintType
 } from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
 
-/* ---------- ELEMENTS ---------- */
 const video = document.getElementById("video");
+const startBtn = document.getElementById("startBtn");
 const resultEl = document.getElementById("result");
 const statusEl = document.getElementById("status");
 const timestampEl = document.getElementById("timestamp");
 const progressEl = document.getElementById("progress");
-const beep = document.getElementById("beep-sound");
+const beep = document.getElementById("beep");
 
-/* ---------- URL PARAMS ---------- */
 const params = new URLSearchParams(window.location.search);
 const totalCount = Number(params.get("count") || 0);
 const courier = params.get("courier") || "";
@@ -77,11 +77,10 @@ const courier = params.get("courier") || "";
 document.getElementById("info").textContent =
   `Courier: ${courier} | Parcels to scan: ${totalCount}`;
 
-/* ---------- APPS SCRIPT URL ---------- */
 const WEB_APP_URL =
   "https://script.google.com/macros/s/AKfycbxy0rhoNDPdRWvZSkRPsZHGy-TLpuVMiqsyFKuKPBpMEc-fx4ZgBLA4JPc0_l-F358azw/exec";
 
-/* ---------- ZXING LINEAR ONLY ---------- */
+/* LINEAR ONLY */
 const hints = new Map();
 hints.set(DecodeHintType.POSSIBLE_FORMATS, [
   BarcodeFormat.CODE_128,
@@ -94,70 +93,61 @@ hints.set(DecodeHintType.POSSIBLE_FORMATS, [
 ]);
 
 const reader = new BrowserMultiFormatReader(hints, {
-  delayBetweenScanAttempts: 40,   // 🔥 FAST
+  delayBetweenScanAttempts: 40,
   delayBetweenScanSuccess: 800
 });
 
-/* ---------- STATE ---------- */
 let scanned = new Set();
 let scanning = true;
 
 progressEl.textContent = `0 / ${totalCount} scanned`;
 
-/* ---------- FORCE REAR CAMERA ---------- */
-navigator.mediaDevices.getUserMedia({
-  video: { facingMode: "environment" }
-}).then(stream => {
-  video.srcObject = stream;
-});
+startBtn.onclick = async () => {
+  startBtn.style.display = "none";
+  video.style.display = "block";
 
-/* ---------- START SCANNING ---------- */
-reader.decodeFromVideoDevice(null, video, async (result) => {
-  if (!result || !scanning) return;
+  reader.decodeFromVideoDevice(
+    { facingMode: "environment" },
+    video,
+    async (result) => {
+      if (!result || !scanning) return;
 
-  const code = result.getText().trim();
+      const code = result.getText().trim();
+      if (scanned.has(code)) return;
 
-  if (scanned.has(code)) return;
+      scanning = false;
+      scanned.add(code);
+      resultEl.textContent = code;
 
-  scanning = false;
-  scanned.add(code);
-  resultEl.textContent = code;
+      beep.play().catch(()=>{});
+      if (navigator.vibrate) navigator.vibrate(150);
 
-  /* Feedback */
-  beep.currentTime = 0;
-  beep.play().catch(()=>{});
-  if (navigator.vibrate) navigator.vibrate(150);
+      try {
+        await fetch(WEB_APP_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ page:"page2", tracking: code }),
+          mode: "no-cors"
+        });
 
-  /* Save to Sheet2 */
-  try {
-    await fetch(WEB_APP_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ page: "page2", tracking: code }),
-      mode: "no-cors"
-    });
+        const now = new Date();
+        statusEl.textContent = "Saved ✅";
+        timestampEl.textContent = "Scan Time: " + now.toLocaleString();
+      } catch {
+        statusEl.textContent = "Save error ❌";
+      }
 
-    const now = new Date();
-    statusEl.textContent = "Saved ✅";
-    timestampEl.textContent = "Scan Time: " + now.toLocaleString();
+      progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
 
-  } catch {
-    statusEl.textContent = "Save error ❌";
-  }
+      setTimeout(() => scanning = true, 600);
 
-  progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
-
-  /* Resume scanning */
-  setTimeout(() => scanning = true, 600);
-
-  /* Done */
-  if (scanned.size >= totalCount) {
-    statusEl.textContent = "All parcels scanned! Redirecting...";
-    setTimeout(() => {
-      window.location.href = "index.html";
-    }, 2000);
-  }
-});
+      if (scanned.size >= totalCount) {
+        statusEl.textContent = "All scanned! Redirecting...";
+        setTimeout(() => window.location.href = "index.html", 2000);
+      }
+    }
+  );
+};
 </script>
 
 </body>
