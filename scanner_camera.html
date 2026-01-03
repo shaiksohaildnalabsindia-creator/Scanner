@@ -72,7 +72,7 @@ reader.decodeFromVideoDevice(null, video, async (result) => {
       body: JSON.stringify({ page:"page2", tracking: code }),
       mode: "no-cors"
     });
-    statusEl.textContent = "Saved to sheet ✅";
+    statusEl.textContent = `Saved ✅ at ${now.toLocaleString()}`;
   } catch (err) {
     console.error(err);
     statusEl.textContent = "Error saving ❌";
