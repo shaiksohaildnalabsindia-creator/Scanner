@@ -1,95 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Parcel Entry</title>
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background: linear-gradient(135deg, #f6d365, #fda085);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  margin: 0;
-}
-.container {
-  background: white;
-  border-radius: 15px;
-  padding: 30px;
-  max-width: 400px;
-  width: 90%;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-  text-align: center;
-}
-h2 { color: #ff6f61; margin-bottom: 20px; }
-label { font-weight: bold; display: block; text-align: left; margin-top: 15px; }
-select, button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 8px;
-  font-size: 16px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-}
-button {
-  background-color: #ff6f61;
-  color: #fff;
-  border: none;
-  cursor: pointer;
-  margin-top: 20px;
-}
-button:hover { background-color: #ff3b2e; }
-@media (max-width: 500px){
-  select, button { font-size: 18px; padding: 14px; }
-}
-</style>
-</head>
-<body>
-<div class="container">
-<h2>Parcel Entry</h2>
-<label for="courier">Parcels From:</label>
-<select id="courier">
-  <option value="">Select Courier</option>
-  <option>Bluedart</option>
-  <option>FedEx</option>
-  <option>DTDC</option>
-  <option>Others</option>
-</select>
-<label for="count">Count:</label>
-<select id="count">
-  <option value="">Select Count</option>
-  <script>
-    for(let i=1;i<=9;i++){ document.write(`<option value="${i}">${i}</option>`); }
-  </script>
-</select>
-<button onclick="submitData()">Submit</button>
-</div>
+document.getElementById("parcelForm").addEventListener("submit", async function(e){
+  e.preventDefault();
 
-<script>
-const API_URL = "https://script.google.com/macros/s/AKfycby8OmmFFT09Tv0lty2ZZH7O4u8KUzxCygrFGCOBobX-_x7sntEPuFlb3StS1jELMxLL/exec";
-
-function submitData(){
   const courier = document.getElementById("courier").value;
   const count = document.getElementById("count").value;
-  if(!courier || !count){ alert("Please select courier and count"); return; }
 
-  fetch(API_URL,{
-    method:"POST",
-    headers: { "Content-Type":"text/plain;charset=utf-8" },
-    body: JSON.stringify({ type:"entry", courier, count })
-  })
-  .then(res=>res.text())
-  .then(data=>{
-    console.log("API Response:", data);
-    window.location.href = `scanner.html?courier=${encodeURIComponent(courier)}&count=${encodeURIComponent(count)}`;
-  })
-  .catch(err=>{
-    console.error(err);
-    alert("Failed to send data. Check console.");
+  if(!courier || !count){
+    alert("Please select courier and count");
+    return;
+  }
+
+  // Send data to Apps Script
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxy0rhoNDPdRWvZSkRPsZHGy-TLpuVMiqsyFKuKPBpMEc-fx4ZgBLA4JPc0_l-F358azw/exec";
+
+  await fetch(WEB_APP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ page:"page1", courier, count }),
+    mode: "no-cors"
   });
-}
-</script>
-</body>
-</html>
+
+  // Redirect to scanner page
+  window.location.href = `scanner_camera.html?courier=${encodeURIComponent(courier)}&count=${count}`;
+});
