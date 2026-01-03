@@ -46,7 +46,7 @@ const courier = params.get("courier") || "";
 document.getElementById("info").textContent =
   `Courier: ${courier} | Parcels to scan: ${totalCount}`;
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby8OmmFFT09Tv0lty2ZZH7O4u8KUzxCygrFGCOBobX-_x7sntEPuFlb3StS1jELMxLL/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxy0rhoNDPdRWvZSkRPsZHGy-TLpuVMiqsyFKuKPBpMEc-fx4ZgBLA4JPc0_l-F358azw/exec";
 
 let scanned = new Set();
 progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
@@ -64,11 +64,12 @@ reader.decodeFromVideoDevice(null, video, async (result) => {
   beep.play().catch(() => {});
   if (navigator.vibrate) navigator.vibrate(200);
 
+  // Save to Sheet2
   try {
     await fetch(WEB_APP_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tracking: code }),
+      body: JSON.stringify({ page:"page2", tracking: code }),
       mode: "no-cors"
     });
     statusEl.textContent = "Saved to sheet ✅";
