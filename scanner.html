@@ -1,20 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Parcel Camera Scanner</title>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: linear-gradient(135deg,#a8edea,#fed6e3); }
-    video { width: 100%; max-width: 400px; border: 1px solid #ccc; border-radius: 6px; }
-    #status { margin-top: 10px; font-weight: bold; color:#333; }
-    #progress { margin-top:10px; font-weight:bold; }
-    h2 { color:#ff6f61; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera Barcode Scanner</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg,#a8edea,#fed6e3);
+  }
+  h2 { color:#ff6f61; }
+  video { width:90%; max-width:400px; border:1px solid #ccc; border-radius:6px; }
+  #status, #progress { margin-top:10px; font-weight:bold; color:#333; }
+  #result { font-weight:bold; color:#000; }
+</style>
 </head>
 <body>
 
-<h2>Parcel Barcode Scanner</h2>
+<h2>Parcel Camera Scanner</h2>
 <p id="info"></p>
 <video id="video" autoplay playsinline></video>
 <p><b>Last Scanned:</b> <span id="result">None</span></p>
@@ -24,69 +29,62 @@
 <audio id="beep-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
 <script type="module">
-  import { BrowserMultiFormatReader } from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
+import { BrowserMultiFormatReader } from "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm";
 
-  const reader = new BrowserMultiFormatReader();
-  const video = document.getElementById("video");
-  const resultEl = document.getElementById("result");
-  const statusEl = document.getElementById("status");
-  const progressEl = document.getElementById("progress");
-  const beep = document.getElementById("beep-sound");
+const reader = new BrowserMultiFormatReader();
+const video = document.getElementById("video");
+const resultEl = document.getElementById("result");
+const statusEl = document.getElementById("status");
+const progressEl = document.getElementById("progress");
+const beep = document.getElementById("beep-sound");
 
-  // Get courier & total count from URL
-  const params = new URLSearchParams(window.location.search);
-  const courier = params.get("courier");
-  const totalCount = Number(params.get("count"));
+// Get courier & total count from URL
+const params = new URLSearchParams(window.location.search);
+const totalCount = Number(params.get("count") || 0);
+const courier = params.get("courier") || "";
 
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz8BckjSR12Qk3Gm84gsbu_QCJ3BFWJLr6sQcI73pkpRl6TmLb5NkdiKe3Xo_436YM/exec";
+document.getElementById("info").textContent =
+  `Courier: ${courier} | Parcels to scan: ${totalCount}`;
 
-  const scanned = new Set();
-  progressEl.textContent = `0 / ${totalCount} scanned`;
-  document.getElementById("info").textContent = `Courier: ${courier} | Parcels to scan: ${totalCount}`;
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby8OmmFFT09Tv0lty2ZZH7O4u8KUzxCygrFGCOBobX-_x7sntEPuFlb3StS1jELMxLL/exec`;
 
-  reader.decodeFromVideoDevice(null, video, async (result) => {
-    if (!result) return;
+let scanned = new Set();
+progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
 
-    const code = result.getText().trim();
+reader.decodeFromVideoDevice(null, video, async (result) => {
+  if (!result) return;
+  const code = result.getText().trim();
+  if (scanned.has(code)) return;
 
-    if (scanned.has(code)) return; // skip duplicate
+  scanned.add(code);
+  resultEl.textContent = code;
+  statusEl.textContent = "Scanning...";
 
-    // Basic validation
-    if (/^[A-Z0-9]{5,30}$/i.test(code)) {
-      scanned.add(code);
-      resultEl.textContent = code;
-      statusEl.textContent = "Valid tracking number ✅";
+  beep.currentTime = 0;
+  beep.play().catch(() => {});
+  if (navigator.vibrate) navigator.vibrate(200);
 
-      // Beep + vibrate
-      beep.currentTime = 0;
-      beep.play().catch(() => {});
-      if (navigator.vibrate) navigator.vibrate(200);
+  try {
+    await fetch(WEB_APP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tracking: code }),
+      mode: "no-cors"
+    });
+    statusEl.textContent = "Saved to sheet ✅";
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Error saving ❌";
+  }
 
-      // Send to Apps Script
-      try {
-        await fetch(WEB_APP_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "scan", courier, tracking: code }),
-          mode: "no-cors" // avoids CORS preflight
-        });
-        statusEl.textContent = "Saved to sheet ✅";
-      } catch(err){
-        console.error(err);
-        statusEl.textContent = "Error saving ❌";
-      }
+  progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
 
-      progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
-
-      // Stop scanning when all done
-      if(scanned.size >= totalCount){
-        statusEl.textContent = "All parcels scanned! ✅";
-        setTimeout(()=>{ window.location.href="index.html"; }, 2000);
-      }
-    } else {
-      statusEl.textContent = "Invalid barcode ❌";
-    }
-  });
+  if (scanned.size >= totalCount) {
+    statusEl.textContent = "All scanned! Redirecting...";
+    setTimeout(() => { window.location.href = "index.html"; }, 2000);
+  }
+});
 </script>
+
 </body>
 </html>
