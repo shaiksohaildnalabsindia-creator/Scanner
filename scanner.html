@@ -38,7 +38,7 @@ const statusEl = document.getElementById("status");
 const progressEl = document.getElementById("progress");
 const beep = document.getElementById("beep-sound");
 
-// Get courier & total count from URL
+// Get courier & count from URL
 const params = new URLSearchParams(window.location.search);
 const totalCount = Number(params.get("count") || 0);
 const courier = params.get("courier") || "";
@@ -46,7 +46,7 @@ const courier = params.get("courier") || "";
 document.getElementById("info").textContent =
   `Courier: ${courier} | Parcels to scan: ${totalCount}`;
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby8OmmFFT09Tv0lty2ZZH7O4u8KUzxCygrFGCOBobX-_x7sntEPuFlb3StS1jELMxLL/exec`;
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby8OmmFFT09Tv0lty2ZZH7O4u8KUzxCygrFGCOBobX-_x7sntEPuFlb3StS1jELMxLL/exec";
 
 let scanned = new Set();
 progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
