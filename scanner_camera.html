@@ -48,7 +48,7 @@ const courier = params.get("courier") || "";
 document.getElementById("info").textContent =
   `Courier: ${courier} | Parcels to scan: ${totalCount}`;
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwE8mtwOmzlU4J-Fbm4muV-I9C3XWdE3dQc0t7H4sXcHNwCWvcs7WR7eySzxOhGlDmZow/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyICpUztbMKDZBuVO-iw8RHCB2uIDeIp5FqWJuJRrDGLrpkFDD1hBcjX70qFPmq2TZyjg/exec";
 
 let scanned = new Set();
 progressEl.textContent = `${scanned.size} / ${totalCount} scanned`;
