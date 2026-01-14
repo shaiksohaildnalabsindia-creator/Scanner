@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload Parcel Image</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg,#fdfbfb,#ebedee);
+  }
+  h2 { color:#333; }
+  input, button {
+    margin: 10px;
+    padding: 10px;
+    font-size: 16px;
+  }
+  img {
+    max-width: 90%;
+    margin-top: 15px;
+    border-radius: 6px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<h2>Upload Parcel Image</h2>
+
+<input type="text" id="tracking" placeholder="Tracking Number" required>
+
+<br>
+
+<input type="file" id="imageInput" accept="image/*" capture="environment">
+
+<br>
+
+<img id="preview">
+
+<br>
+
+<button id="uploadBtn">Upload Image</button>
+
+<p id="status"></p>
+
+<script>
+const WEB_APP_URL =
+"https://script.google.com/macros/s/AKfycbxDyfhQF_0awP22_xAu2VJEgmGg_AiNN8STquwQfvyAGrHLz7MWsWWrQK1S7vi-rNo8pw/exec";
+
+const imageInput = document.getElementById("imageInput");
+const preview = document.getElementById("preview");
+const statusEl = document.getElementById("status");
+let imageBase64 = "";
+
+/* Preview + Convert image */
+imageInput.addEventListener("change", () => {
+  const file = imageInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    imageBase64 = reader.result;
+    preview.src = imageBase64;
+    preview.style.display = "block";
+  };
+  reader.readAsDataURL(file);
+});
+
+/* Upload */
+document.getElementById("uploadBtn").addEventListener("click", async () => {
+  const tracking = document.getElementById("tracking").value.trim();
+
+  if (!tracking || !imageBase64) {
+    alert("Tracking number and image required");
+    return;
+  }
+
+  statusEl.textContent = "Uploading...";
+
+  await fetch(WEB_APP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      page: "page2",
+      tracking: tracking,
+      image: imageBase64
+    }),
+    mode: "no-cors"
+  });
+
+  statusEl.textContent = "Image uploaded successfully ✅";
+  preview.style.display = "none";
+  imageInput.value = "";
+});
+</script>
+
+</body>
+</html>
