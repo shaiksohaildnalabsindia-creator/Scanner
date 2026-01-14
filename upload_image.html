@@ -30,17 +30,21 @@
 
 <h2>Upload Parcel Image</h2>
 
-<input type="text" id="tracking" placeholder="Tracking Number" required>
+<label for="tracking"><b>Select Tracking Number</b></label><br><br>
 
-<br>
+<select id="tracking" style="padding:10px; font-size:16px; width:250px;">
+  <option value="">Loading today’s parcels...</option>
+</select>
+
+<br><br>
 
 <input type="file" id="imageInput" accept="image/*" capture="environment">
 
-<br>
+<br><br>
 
-<img id="preview">
+<img id="preview" style="max-width:90%; display:none; border-radius:6px;">
 
-<br>
+<br><br>
 
 <button id="uploadBtn">Upload Image</button>
 
@@ -50,12 +54,42 @@
 const WEB_APP_URL =
 "https://script.google.com/macros/s/AKfycbzIPGaHboQ-BXnIijZLkHcCbOJLOFhjeXPejqzQN-8Ck9srLc30WWIMMJrptMByaE78TA/exec";
 
+const trackingSelect = document.getElementById("tracking");
 const imageInput = document.getElementById("imageInput");
 const preview = document.getElementById("preview");
 const statusEl = document.getElementById("status");
+
 let imageBase64 = "";
 
-/* Preview + Convert image */
+/* LOAD TODAY'S TRACKING NUMBERS */
+fetch(`${WEB_APP_URL}?action=today`)
+  .then(res => res.json())
+  .then(list => {
+    trackingSelect.innerHTML = "";
+
+    if (list.length === 0) {
+      trackingSelect.innerHTML =
+        `<option value="">No parcels delivered today</option>`;
+      return;
+    }
+
+    trackingSelect.innerHTML =
+      `<option value="">Select Tracking Number</option>`;
+
+    list.forEach(t => {
+      const opt = document.createElement("option");
+      opt.value = t;
+      opt.textContent = t;
+      trackingSelect.appendChild(opt);
+    });
+  })
+  .catch(err => {
+    console.error(err);
+    trackingSelect.innerHTML =
+      `<option value="">Error loading parcels</option>`;
+  });
+
+/* IMAGE PREVIEW */
 imageInput.addEventListener("change", () => {
   const file = imageInput.files[0];
   if (!file) return;
@@ -69,12 +103,12 @@ imageInput.addEventListener("change", () => {
   reader.readAsDataURL(file);
 });
 
-/* Upload */
+/* UPLOAD IMAGE */
 document.getElementById("uploadBtn").addEventListener("click", async () => {
-  const tracking = document.getElementById("tracking").value.trim();
+  const tracking = trackingSelect.value;
 
   if (!tracking || !imageBase64) {
-    alert("Tracking number and image required");
+    alert("Please select tracking number and image");
     return;
   }
 
@@ -92,8 +126,9 @@ document.getElementById("uploadBtn").addEventListener("click", async () => {
   });
 
   statusEl.textContent = "Image uploaded successfully ✅";
-  preview.style.display = "none";
+
   imageInput.value = "";
+  preview.style.display = "none";
 });
 </script>
 
